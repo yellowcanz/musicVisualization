@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0;"name="viewport"/>
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>musicVisualization</title>
+  <style>
+    html,
+    body {
+      display: flex;
+      align-content: center;
+      justify-content: center;
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background-color: black;
+    }
+
+    .cont {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+    }
+    .vc-switch{
+      right: 50% !important;
+      transform: translateX(50%);
+      padding: 0.2rem !important;
+    }
+
+    canvas {
+      background-color: #1e1e1e;
+    }
+
+    span{
+      color: #1e1e1e;
+    }
+  </style>
+  <script> 
+    //屏幕适应 
+    (function (win, doc) {
+        if (!win.addEventListener) return;
+        var html = document.documentElement;
+        function setFont() {
+            var html = document.documentElement;
+            var k = window.innerWidth * devicePixelRatio;
+            console.log(k)
+            html.style.fontSize = html.clientWidth / k * 100 + "px";
+        }
+        setFont();
+        setTimeout(function () {
+            setFont();
+        }, 300);
+        doc.addEventListener('DOMContentLoaded', setFont, false);
+        win.addEventListener('resize', setFont, false);
+        win.addEventListener('load', setFont, false);
+    })(window, document);
+</script>
+</head>
+
+<body>
+  <div class="cont">
+    <canvas></canvas>
+    <!-- <audio src="./music.mp3" controls></audio> -->
+    <audio controls loop></audio>
+    <span>一首苦咖啡送给老沈</span>
+  </div>
+  <script src="https://cdn.bootcdn.net/ajax/libs/vConsole/3.15.0/vconsole.min.js"></script>
+  <script>
+    const vcon = new VConsole()
+    const canvas = document.querySelector('canvas')
+    const audio = document.querySelector('audio')
+    audio.crossOrigin = 'anonymous'; //跨域
+    let ctx = canvas.getContext('2d')
+
+    audio.src = 'http://m801.music.126.net/20230223154524/057297a6d94386fa2c30e149d59d2a7d/jdymusic/obj/wo3DlMOGwrbDjj7DisKw/24848401585/8cfe/17f4/528d/e8c43a7e0381deb4de8948716252958e.mp3'
+    console.log(audio.src);
+
+    function initcvs() {
+      canvas.width = window.innerWidth 
+      canvas.height = window.innerHeight / 2 
+    }
+    initcvs()
+
+    let init = false;
+    let dataArry, parser
+    audio.onplay = function () {
+      if (init) {
+        return
+      }
+
+      // 初始化
+      const curdio = new AudioContext() //创建音频上下文
+      const source = curdio.createMediaElementSource(audio) //创建源节点
+      parser = curdio.createAnalyser() //创建分析器
+      parser.fftSize = 512 //变换窗口大小 越大越细腻 n的2次方幂 默认值2048
+      //创建一个不是普通的数组，接受分析器分析出来的数据
+      //每一项数据无符号的8位整数 1字节 = 8位
+      //因为是对称 长度取一半
+      dataArry = new Uint8Array(parser.frequencyBinCount)
+      source.connect(parser) //源节点链接分析器
+      parser.connect(curdio.destination) //分析器链接到输出设备
+      init = true
+    }
+
+    // 将分析数据输出到canvas上
+    function draw() {
+      requestAnimationFrame(draw)
+      //清空画布
+      const {
+        width,
+        height
+      } = canvas
+      ctx.clearRect(0, 0, width, height)
+
+      if (!init) {
+        return
+      }
+
+      //分析器数据到数组中
+      parser.getByteFrequencyData(dataArry)
+      // const len = dataArry.length 
+      const len = dataArry.length / 2 //截取前面部分
+      // const barwidth = width / len 
+      const barwidth = width / len / 2 //留出左边空间对称 
+      ctx.fillStyle = '#82291e'
+
+      for (let i = 0; i < len; i++) {
+        const data = dataArry[i] //<256
+        const barheigt = data / 255 * height / 2
+        // const x = i * barwidth
+        const x1 = i * barwidth + width / 2 //左边
+        const x2 = width / 2 - (i + 1) * barwidth //右边
+
+        const y1 = height / 2 - barheigt //上面
+        const y2 = height / 2  //下面
+
+
+        ctx.fillRect(x1, y1, barwidth, barheigt)
+        ctx.fillRect(x2, y1, barwidth, barheigt)
+
+        ctx.fillRect(x2, y2, barwidth, barheigt)
+        ctx.fillRect(x1, y2, barwidth, barheigt)
+
+      }
+
+    }
+
+    draw()
+    audio.autoplay = true
+  </script>
+</body>
